@@ -1,11 +1,19 @@
 import requests   # requests library is required to talk to the Assembly AI's API.
 import json
-from api_secrets import API_KEY_ASSEMBLYAI
+from api_secrets import API_KEY_ASSEMBLYAI, API_KEY_LISTENNOTES
 import time
 
 transcript_endpoint = 'https://api.assemblyai.com/v2/transcript'
+assemblyai_headers = {'authorization': API_KEY_ASSEMBLYAI} 
+
 listennotes_episode_endpoint = "https://listen-api.listennotes.com/api/v2/episodes"
-headers = {'authorization': API_KEY_ASSEMBLYAI} 
+listennotes_headers ={'X-ListenAPI-Key': API_KEY_LISTENNOTES}
+
+def get_episode_audio_url(episode_id):
+    url = listennotes_episode_endpoint + '/' + episode_id
+    response = requests.request('GET', url, headers = listennotes_headers)
+    data = response.json()
+    print(data)
 
 # transcribe
 def transcribe(audio_url):
