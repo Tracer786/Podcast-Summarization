@@ -15,12 +15,18 @@ def get_episode_audio_url(episode_id):
     response = requests.request('GET', url, headers = listennotes_headers)
     data = response.json()
     # print(data)
-    pprint.pprint(data)
+    # pprint.pprint(data)
+    
+    audio_url = data['audio']
+    episode_thumbnail = data['thumbnail']
+    podcast_title = data['podcast']['title']
+    episode_title = data['title']
+    return audio_url, episode_thumbnail, episode_title, podcast_title
 
 # transcribe
-def transcribe(audio_url,sentiment_analysis):
-    transcript_request = { "audio_url": audio_url, 'sentiment_analysis': sentiment_analysis}
-    transcript_response = requests.post(transcript_endpoint, json=transcript_request, headers=sentiment_analysis)
+def transcribe(audio_url,auto_chapters):
+    transcript_request = { "audio_url": audio_url, 'auto_chapters': auto_chapters}
+    transcript_response = requests.post(transcript_endpoint, json=transcript_request, headers=assemblyai_headers)
     # print(response.json())
     job_id = transcript_response.json()['id']
     return job_id
@@ -28,14 +34,14 @@ def transcribe(audio_url,sentiment_analysis):
 # polling 
 def poll(transcript_id):
     polling_endpoint = transcript_endpoint + '/' + transcript_id
-    polling_response = requests.get(polling_endpoint, headers = listennotes_headers)
+    polling_response = requests.get(polling_endpoint, headers = assemblyai_headers)
     # print(polling_response)
     # print(polling_response.json())
     return polling_response.json()
 
 #will check whether the polling is complete or not
-def get_transcription_result_url(url,sentiment_analysis):
-    transcribe_id = transcribe(url,sentiment_analysis)
+def get_transcription_result_url(url,auto_chapters):
+    transcribe_id = transcribe(url,auto_chapters)
     while True:
         data = poll(transcribe_id)
         if data['status'] == 'completed':
@@ -43,25 +49,34 @@ def get_transcription_result_url(url,sentiment_analysis):
         elif data['status'] == 'error':
             return data, data['error']
         
-        print('Waiting 30 seconds...')
-        time.sleep(30)
+        print('Waiting 60 seconds...')
+        time.sleep(60)
         
 # save transcription
-def save_transcript(url,title,sentiment_analysis = False):
-    data,error = get_transcription_result_url(url,sentiment_analysis)
+def save_transcript(episode_id):
+    audio_url, episode_thumbnail, episode_title, podcast_title = get_episode_audio_url(episode_id)
+    data,error = get_transcription_result_url(audio_url, auto_chapters = True)
+    
+    pprint.pprint(data)
 
     if data:
-        filename = title + ".txt"
+        filename = episode_id + ".txt"
         with open(filename, "w") as f:
             f.write(data['text'])
-        
-        if sentiment_analysis:
-            filename = title + '_sentiments.json'
-            with open(filename,'w') as f:
-                sentiments = data['sentiment_analysis_results']
-                json.dump(sentiments, f, indent=4)
-            print('Transcript saved')
+            
+        chapters_filename = episode_id + '_chapters.json'
+        with open(chapters_filename,'w') as f:
+            chapters = data['chapters']
+            episode_data = {'chapters': chapters}
+            episode_data['episode_thumbnail'] = episode_thumbnail
+            episode_data['episode_title'] = episode_title
+            episode_data['podcast_title'] = podcast_title
+            
+            json.dump(episode_data,f)
+            print('Transcript Saved!!')
             return True
-        elif error:
-            print("Error!!",error)
-            return False
+            
+    elif error:
+        print("Error!!",error)
+        return False
+        
