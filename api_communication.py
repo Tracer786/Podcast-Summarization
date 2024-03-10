@@ -2,6 +2,7 @@ import requests   # requests library is required to talk to the Assembly AI's AP
 import json
 from api_secrets import API_KEY_ASSEMBLYAI, API_KEY_LISTENNOTES
 import time
+import pprint
 
 transcript_endpoint = 'https://api.assemblyai.com/v2/transcript'
 assemblyai_headers = {'authorization': API_KEY_ASSEMBLYAI} 
@@ -13,7 +14,8 @@ def get_episode_audio_url(episode_id):
     url = listennotes_episode_endpoint + '/' + episode_id
     response = requests.request('GET', url, headers = listennotes_headers)
     data = response.json()
-    print(data)
+    # print(data)
+    pprint.pprint(data)
 
 # transcribe
 def transcribe(audio_url,sentiment_analysis):
