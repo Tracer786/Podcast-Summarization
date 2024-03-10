@@ -16,9 +16,9 @@ def get_episode_audio_url(episode_id):
     print(data)
 
 # transcribe
-def transcribe(audio_url):
-    transcript_request = { "audio_url": audio_url}
-    transcript_response = requests.post(transcript_endpoint, json=transcript_request, headers=headers)
+def transcribe(audio_url,sentiment_analysis):
+    transcript_request = { "audio_url": audio_url, 'sentiment_analysis': sentiment_analysis}
+    transcript_response = requests.post(transcript_endpoint, json=transcript_request, headers=sentiment_analysis)
     # print(response.json())
     job_id = transcript_response.json()['id']
     return job_id
@@ -26,16 +26,16 @@ def transcribe(audio_url):
 # polling 
 def poll(transcript_id):
     polling_endpoint = transcript_endpoint + '/' + transcript_id
-    polling_response = requests.get(polling_endpoint, headers = headers)
+    polling_response = requests.get(polling_endpoint, headers = listennotes_headers)
     # print(polling_response)
     # print(polling_response.json())
     return polling_response.json()
 
 #will check whether the polling is complete or not
-def get_transcription_result_url(audio_url):
-    transcript_id = transcribe(audio_url)
+def get_transcription_result_url(url,sentiment_analysis):
+    transcribe_id = transcribe(url,sentiment_analysis)
     while True:
-        data = poll(transcript_id)
+        data = poll(transcribe_id)
         if data['status'] == 'completed':
             return data, None
         elif data['status'] == 'error':
@@ -45,14 +45,21 @@ def get_transcription_result_url(audio_url):
         time.sleep(30)
         
 # save transcription
-def save_transcript(audio_url,new_filename):
-    data,error = get_transcription_result_url(audio_url)
+def save_transcript(url,title,sentiment_analysis = False):
+    data,error = get_transcription_result_url(url,sentiment_analysis)
 
     if data:
-        text_filename = new_filename + ".txt"
-        with open(text_filename, "w") as f:
+        filename = title + ".txt"
+        with open(filename, "w") as f:
             f.write(data['text'])
-        print('Transcription saved!!')
-    elif error:
-        print("Error!!", error)
-    # print(data)
+        
+        if sentiment_analysis:
+            filename = title + '_sentiments.json'
+            with open(filename,'w') as f:
+                sentiments = data['sentiment_analysis_results']
+                json.dump(sentiments, f, indent=4)
+            print('Transcript saved')
+            return True
+        elif error:
+            print("Error!!",error)
+            return False
